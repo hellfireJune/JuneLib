@@ -10,3 +10,4 @@ Features:
 * Classes for items with custom charging types
 * Highly customisable advanced grapple modules
 * Helper tools for giving the player "fake items" that give the player the effect but dont appear in the inventory or otherwise
+* ...and other general helper tools
