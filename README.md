@@ -1,4 +1,4 @@
-# JuneLib v0.0.0
+# JuneLib v1.0.0
 
 Junelib is a library of helpful classes, methods, and commonly used hooks to make gungeon modding easier and play nice with other mods, a helpful tool in any modder's arsenal.
 
