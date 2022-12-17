@@ -25,7 +25,7 @@ namespace JuneLib
 
         public void Start()
         {
-            Debug.Log("ENGAGING JUNELIB DATA HARVESTING SCHEME");
+            Debug.Log("junelib jumpscare");
             ETGModMainBehaviour.WaitForGameManagerStart(GMStart);
         }
 
