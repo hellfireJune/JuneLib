@@ -22,7 +22,7 @@ namespace JuneLib.Items
         {
             if (player == null || item == null)
             {
-                ETGModConsole.Log("junelib: trying to remove a fake item that either doesnt exist or doesnt have a player? ", true);
+                Debug.Log("junelib: trying to remove a fake item that either doesnt exist or doesnt have a player? ");
                 return;
             }
             player.DropPassiveItem(item);

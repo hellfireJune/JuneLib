@@ -17,12 +17,12 @@ namespace JuneLib
         {
             if (SkipOverrideCanUse) { __result = __result || CustomChargeTypeItem.GetCustomChargeTypeItemIsOnCooldown(__instance); return; }
             ValidOverrideArgs contentsSet = new ValidOverrideArgs();
-            contentsSet.ShouldBeOnCooldown = false; //
+            contentsSet.ShouldBeUseable = false; //
 			contentsSet.overrideItemsUse = new List<Tuple<ValidOverrideArgs.Priority, Action<PlayerController, PlayerItem, OnUseOverrideArgs>>>();
 			if (ItemsCore. OnPreUseItem != null) { ItemsCore.OnPreUseItem(__instance.LastOwner, __instance, contentsSet); }
 
 			__instance.gameObject.GetOrAddComponent<ActionContainer>().overrideItemsUse = contentsSet.overrideItemsUse;
-            __result = __result || CustomChargeTypeItem.GetCustomChargeTypeItemIsOnCooldown(__instance) || contentsSet.ShouldBeOnCooldown;
+            __result = __result || CustomChargeTypeItem.GetCustomChargeTypeItemIsOnCooldown(__instance) || contentsSet.ShouldBeUseable;
         }
 
         [HarmonyPatch(typeof(PlayerItem), nameof(PlayerItem.Use))]
@@ -75,8 +75,14 @@ namespace JuneLib
 				NONE
 			}
 
-			public bool ShouldBeOnCooldown;
-			public List<Tuple<Priority, Action<PlayerController, PlayerItem, OnUseOverrideArgs>>> overrideItemsUse;
+			public bool ShouldBeUseable;
+			internal List<Tuple<Priority, Action<PlayerController, PlayerItem, OnUseOverrideArgs>>> overrideItemsUse;
+
+			public void AddActionWithPriority(Priority priority, Action<PlayerController, PlayerItem, OnUseOverrideArgs> action)
+            {
+				overrideItemsUse.Add(new Tuple<Priority,
+					Action<PlayerController, PlayerItem, OnUseOverrideArgs>>(priority, action));
+			}
 		}
 		
 		public class OnUseOverrideArgs : EventArgs

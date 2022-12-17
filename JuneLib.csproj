@@ -43,6 +43,7 @@
     <Compile Include="Scripts\Core\UICore.cs" />
     <Compile Include="Scripts\Items\BaseAdvancedGrappleModule.cs" />
     <Compile Include="Scripts\Items\CustomChargeTypeItem.cs" />
+    <Compile Include="Scripts\Items\Familiars\SimpleCompanionBehaviours.cs" />
     <Compile Include="Scripts\Items\OverrideItemCanBeUsed.cs" />
     <Compile Include="Scripts\Items\Guns\GunMaker.cs" />
     <Compile Include="Scripts\Items\JuneLibRoomRewardAPI.cs" />
