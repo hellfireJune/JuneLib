@@ -18,7 +18,7 @@ namespace JuneLib
     public class JuneLibModule : BaseUnityPlugin
     {
         public const string MOD_NAME = "JuneLib";
-        public const string VERSION = "1.0.0";
+        public const string VERSION = "1.0.3";
         public static readonly string TEXT_COLOR = "#FFFFFF";
         public static readonly string ASSEMBLY_NAME = "JuneLib";
         public const string GUID = "blazeykat.etg.junelib";
