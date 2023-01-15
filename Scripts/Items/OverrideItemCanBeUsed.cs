@@ -15,22 +15,38 @@ namespace JuneLib
         [HarmonyPostfix]
         public static void OverrideCanUse(PlayerItem __instance, ref bool __result)
         {
-            if (SkipOverrideCanUse) { __result = __result || CustomChargeTypeItem.GetCustomChargeTypeItemIsOnCooldown(__instance); return; }
+			if (__instance is CustomChargeTypeItem)
+            {
+				__result = __result || CustomChargeTypeItem.GetCustomChargeTypeItemIsOnCooldown(__instance);
+				return;
+			}
+			if (SkipOverrideCanUse) { return; }
             ValidOverrideArgs contentsSet = new ValidOverrideArgs();
             contentsSet.ShouldBeUseable = false; //
 			contentsSet.overrideItemsUse = new List<Tuple<ValidOverrideArgs.Priority, Action<PlayerController, PlayerItem, OnUseOverrideArgs>>>();
-			if (ItemsCore. OnPreUseItem != null) { ItemsCore.OnPreUseItem(__instance.LastOwner, __instance, contentsSet); }
+			if (ItemsCore.OnPreUseItem != null) { ItemsCore.OnPreUseItem(__instance.LastOwner, __instance, contentsSet); }
 
-			__instance.gameObject.GetOrAddComponent<ActionContainer>().overrideItemsUse = contentsSet.overrideItemsUse;
-            __result = __result || CustomChargeTypeItem.GetCustomChargeTypeItemIsOnCooldown(__instance) || contentsSet.ShouldBeUseable;
+			ActionContainer comp = __instance.gameObject.GetOrAddComponent<ActionContainer>();
+			comp.overrideItemsUse = contentsSet.overrideItemsUse;
+			if (contentsSet.ShouldBeUseable || comp.GuaranteeCheck)
+            {
+				__result = false;
+            }
+			if (!SkipLogging) { ETGModConsole.Log(__result);
+				ETGModConsole.Log(comp.GuaranteeCheck);
+			}
         }
 
         [HarmonyPatch(typeof(PlayerItem), nameof(PlayerItem.Use))]
 		[HarmonyPrefix]
 		public static bool PreUseItem(PlayerItem __instance, PlayerController user)
         {
-			ActionContainer sss = __instance.gameObject.GetOrAddComponent<ActionContainer>();
-			if (sss.overrideItemsUse.Count > 0)
+			if (!InternalIsOnCooldown(__instance))
+            {
+				return true;
+            }
+            ActionContainer sss = __instance.gameObject.GetOrAddComponent<ActionContainer>();
+			if (sss.overrideItemsUse != null && sss.overrideItemsUse.Count > 0)
 			{
 				for (ValidOverrideArgs.Priority priority = ValidOverrideArgs.Priority.INHERENT_ACTIVE_ITEM_EFFECT; priority < ValidOverrideArgs.Priority.NONE; priority = priority.Next())
 				{
@@ -41,19 +57,27 @@ namespace JuneLib
                         {
                             shouldSkip = true
                         };
-                        foreach (var actions in tuples)
-                        {
+						foreach (var actions in tuples)
+						{
 							actions.Second?.Invoke(user, __instance, args);
-                        }
+						}
+						sss.GuaranteeCheck = true;
 						return args.shouldSkip;
                     }
 				}
 			}
 			return true;
 		}
+		[HarmonyPatch(typeof(PlayerItem), nameof(PlayerItem.Use))]
+		[HarmonyPostfix]
+		public static void PostUseItem(PlayerItem __instance)
+        {
+			ActionContainer sss = __instance.gameObject.GetOrAddComponent<ActionContainer>();
+			sss.GuaranteeCheck = false;
+		}
 
 
-        public static bool SkipOverrideCanUse = false;
+		public static bool SkipOverrideCanUse = false;
         private static bool InternalIsOnCooldown(this PlayerItem item)
         {
             SkipOverrideCanUse = true;
@@ -93,7 +117,10 @@ namespace JuneLib
 		private class ActionContainer : MonoBehaviour
 		{
 			public List<Tuple<ValidOverrideArgs.Priority, Action<PlayerController, PlayerItem, OnUseOverrideArgs>>> overrideItemsUse;
+			public bool GuaranteeCheck;
 		}
+
+		public static bool SkipLogging = true;
 
 		/*Compat Hell*/
 		[HarmonyPatch(typeof(GameUIItemController), nameof(GameUIItemController.UpdateItemSprite))]
@@ -180,7 +207,7 @@ namespace JuneLib
 					}
 				}
 			}
-			return true;
+			return false;
         }
 
 		[HarmonyPatch(typeof(PlayerItem), nameof(PlayerItem.CooldownPercentage), MethodType.Getter)]
