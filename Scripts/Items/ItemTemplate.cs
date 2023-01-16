@@ -1,4 +1,5 @@
 ﻿using Alexandria.ItemAPI;
+using Alexandria.Misc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,7 @@ namespace JuneLib.Items
             Quality = ItemQuality.EXCLUDED;
             Cooldown = 0f;
             CooldownType = ItemBuilder.CooldownType.Damage;
+            ManualSpriteID = -1;
         }
 
         public string Name;
@@ -33,6 +35,10 @@ namespace JuneLib.Items
         public float Cooldown;
         public ItemBuilder.CooldownType CooldownType;
 
+        public tk2dSpriteCollectionData ManualSpriteCollection;
+        public int ManualSpriteID;
+        public string ManualSpriteKey;
+
         public Action<PickupObject> PostInitAction;
     }
 
@@ -43,6 +49,10 @@ namespace JuneLib.Items
             if (assembly == null) { assembly = Assembly.GetCallingAssembly(); }
             List<Type> items = assembly.GetTypes().Where(type => !type.IsAbstract && typeof(PickupObject).IsAssignableFrom(type)).ToList();
 
+            if (JuneLibModule.debugLog)
+            {
+                ETGModConsole.Log($"{PrefixHandler.pairs[assembly].ToUpper()} Items: {items.Count}");
+            }
             foreach (var item in items)
             {
                 List<MemberInfo> templates = item.GetMembers(BindingFlags.Static | BindingFlags.Public).Where(member => member.GetValueType() == typeof(ItemTemplate)).ToList();
@@ -61,18 +71,42 @@ namespace JuneLib.Items
             GameObject obj = new GameObject(itemName);
             var item = obj.AddComponent(temp.Type);
             Assembly spriteAssembly = temp.SpriteResource != $"{JuneLibModule.ASSEMBLY_NAME}/Resources/example_item_sprite" ? assembly : Assembly.GetExecutingAssembly();
-            ItemBuilder.AddSpriteToObject(itemName, resourceName, obj, spriteAssembly);
+            if (temp.ManualSpriteCollection != null)
+            {
+                tk2dSpriteCollectionData daa = temp.ManualSpriteCollection;
+                int id = -1;
+                if (temp.ManualSpriteID != -1)
+                {
+                    id = temp.ManualSpriteID;
+                } else if (string.IsNullOrEmpty(temp.ManualSpriteKey))
+                {
+                    id = daa.GetSpriteIdByName(temp.ManualSpriteKey);
+                } else
+                {
+                    ETGModConsole.Log("JuneLib: Something horrible happened while loading the sprite from the Asset Bundle, and both sprite key and sprite ID is null");
+                }
+                ItemBuilderAdditions.AddSpriteToObjectAssetbundle(temp.Name, id, daa, obj);
+            } else
+            {
+                ItemBuilder.AddSpriteToObject(itemName, resourceName, obj, spriteAssembly);
+            }
+            PickupObject pobject = (PickupObject)item;
+
             string shortDesc = temp.Description;
             string longDesc = temp.LongDescription;
-            ItemBuilder.SetupItem((PickupObject)item, shortDesc, longDesc, PrefixHandler.pairs[assembly]);
-            ((PickupObject)item).quality = temp.Quality;
+            ItemBuilder.SetupItem(pobject, shortDesc, longDesc, PrefixHandler.pairs[assembly]);
+            pobject.quality = temp.Quality;
 
             if (item is PlayerItem pitem)
             {
                 pitem.SetCooldownType(temp.CooldownType, temp.Cooldown);
             }
+            if (temp.Quality == ItemQuality.EXCLUDED)
+            {
+                pobject.RemovePickupFromLootTables();
+            }
 
-            temp.PostInitAction?.Invoke((PickupObject)item);
+            temp.PostInitAction?.Invoke(pobject);
             //ETGModConsole.Log($"{temp.Name}, {temp.SpriteResource}");
         }
     }

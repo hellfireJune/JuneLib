@@ -18,7 +18,7 @@ namespace JuneLib
     public class JuneLibModule : BaseUnityPlugin
     {
         public const string MOD_NAME = "JuneLib";
-        public const string VERSION = "1.0.3";
+        public const string VERSION = "1.0.4";
         public static readonly string TEXT_COLOR = "#FFFFFF";
         public static readonly string ASSEMBLY_NAME = "JuneLib";
         public const string GUID = "blazeykat.etg.junelib";
@@ -28,6 +28,8 @@ namespace JuneLib
             Debug.Log("junelib jumpscare");
             ETGModMainBehaviour.WaitForGameManagerStart(GMStart);
         }
+
+        public static bool debugLog = false;
 
         public void GMStart(GameManager g)
         {
