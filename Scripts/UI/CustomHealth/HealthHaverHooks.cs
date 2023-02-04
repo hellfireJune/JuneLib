@@ -20,16 +20,6 @@ namespace JuneLib.UI.CustomHealth
     
 
     [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
-    [HarmonyPatch]
     internal class HealthHaverHooks
     {
         public static void Init()
@@ -186,4 +176,5 @@ namespace JuneLib.UI.CustomHealth
             return true;
         }
     }
-}*/
+}
+*/

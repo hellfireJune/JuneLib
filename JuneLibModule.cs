@@ -18,7 +18,7 @@ namespace JuneLib
     public class JuneLibModule : BaseUnityPlugin
     {
         public const string MOD_NAME = "JuneLib";
-        public const string VERSION = "1.0.4";
+        public const string VERSION = "1.0.5";
         public static readonly string TEXT_COLOR = "#FFFFFF";
         public static readonly string ASSEMBLY_NAME = "JuneLib";
         public const string GUID = "blazeykat.etg.junelib";
@@ -41,11 +41,6 @@ namespace JuneLib
                 ETGModConsole.Log($"{MOD_NAME} v{VERSION} has successfully started");
             }
             catch (Exception e) { ETGModConsole.Log(e.ToString()); }
-        }
-
-        public static void Log(string text, string color = "#FFFFFF")
-        {
-            ETGModConsole.Log($"<color={color}>{text}</color>");
         }
     }
 }

@@ -29,7 +29,7 @@ namespace JuneLib.UI.CustomHealth
 
         private void M_baseHealthHaver_OnPreDeath(Vector2 obj)
         {
-            /*m_baseHealthHaver.currentHealth = 0;
+            m_baseHealthHaver.currentHealth = 0;
             m_baseHealthHaver.currentArmor = 0;
         }
 
@@ -400,4 +400,5 @@ namespace JuneLib.UI.CustomHealth
             }
         }
     }
-}*/
+}
+*/

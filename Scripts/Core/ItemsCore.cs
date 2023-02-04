@@ -11,6 +11,8 @@ namespace JuneLib
     public static class ItemsCore
     {
         public static Action<PlayerController, PlayerItem, ValidOverrideArgs> OnPreUseItem;
+
+        public static Action<PickupObject, PlayerController, bool, JuneLibLootEngineModificationAPI.ModifyLuckArgs> GetItemChanceMult;
         public static void Init()
         {
             //JuneLibRoomRewardAPI.Init();

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Alexandria.ItemAPI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -64,6 +65,12 @@ public static class ItemHelpers
     public static void PlaceItemInAmmonomiconAfterItemById(this PickupObject item, int id) //from SpAPI's items
     {
         item.ForcedPositionInAmmonomicon = PickupObjectDatabase.GetById(id).ForcedPositionInAmmonomicon;
+    }
+
+    public static void MakeBulletMod(this PickupObject item)
+    {
+        item.SetTag("bullet_modifier");
+        item.PlaceItemInAmmonomiconAfterItemById(524);
     }
 
     public static void AddStat(this PassiveItem item, PlayerStats.StatType statType, float amount, StatModifier.ModifyMethod method = StatModifier.ModifyMethod.ADDITIVE)

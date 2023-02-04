@@ -11,7 +11,12 @@ using Gungeon;
 
 namespace JuneLib.Items
 {
-    public class ItemTemplate
+    public abstract class ItemTemplateBase
+    {
+        public abstract void SpecialClassBasedThing(PickupObject pickup);
+    }
+
+    public class ItemTemplate : ItemTemplateBase
     {
         public ItemTemplate(Type type)
         {
@@ -25,6 +30,7 @@ namespace JuneLib.Items
             CooldownType = ItemBuilder.CooldownType.Damage;
             ManualSpriteID = -1;
         }
+        public override void SpecialClassBasedThing(PickupObject pickup) { }
 
         public string Name;
         public string Description;
@@ -44,6 +50,8 @@ namespace JuneLib.Items
 
     public static class ItemTemplateManager
     {
+        internal static Dictionary<Type, Action<ItemTemplate, PickupObject>> AdditionalEffects = new Dictionary<Type, Action<ItemTemplate, PickupObject>>();
+        
         public static void Init(Assembly assembly = null)
         {
             if (assembly == null) { assembly = Assembly.GetCallingAssembly(); }
@@ -55,7 +63,7 @@ namespace JuneLib.Items
             }
             foreach (var item in items)
             {
-                List<MemberInfo> templates = item.GetMembers(BindingFlags.Static | BindingFlags.Public).Where(member => member.GetValueType() == typeof(ItemTemplate)).ToList();
+                List<MemberInfo> templates = item.GetMembers(BindingFlags.Static | BindingFlags.Public).Where(member => member.GetValueType() == typeof(ItemTemplate) || typeof(ItemTemplate).IsAssignableFrom(member.GetValueType())).ToList();
                 foreach(MemberInfo template in templates)
                 {
                     ((ItemTemplate)((FieldInfo)template).GetValue(item)).InitTemplate(assembly);
@@ -70,7 +78,6 @@ namespace JuneLib.Items
             string resourceName = temp.SpriteResource;
             GameObject obj = new GameObject(itemName);
             var item = obj.AddComponent(temp.Type);
-            Assembly spriteAssembly = temp.SpriteResource != $"{JuneLibModule.ASSEMBLY_NAME}/Resources/example_item_sprite" ? assembly : Assembly.GetExecutingAssembly();
             if (temp.ManualSpriteCollection != null)
             {
                 tk2dSpriteCollectionData daa = temp.ManualSpriteCollection;
@@ -88,6 +95,7 @@ namespace JuneLib.Items
                 ItemBuilderAdditions.AddSpriteToObjectAssetbundle(temp.Name, id, daa, obj);
             } else
             {
+                Assembly spriteAssembly = temp.SpriteResource != $"{JuneLibModule.ASSEMBLY_NAME}/Resources/example_item_sprite" ? assembly : Assembly.GetExecutingAssembly();
                 ItemBuilder.AddSpriteToObject(itemName, resourceName, obj, spriteAssembly);
             }
             PickupObject pobject = (PickupObject)item;
@@ -106,6 +114,7 @@ namespace JuneLib.Items
                 pobject.RemovePickupFromLootTables();
             }
 
+            temp.SpecialClassBasedThing(pobject);
             temp.PostInitAction?.Invoke(pobject);
             //ETGModConsole.Log($"{temp.Name}, {temp.SpriteResource}");
         }
