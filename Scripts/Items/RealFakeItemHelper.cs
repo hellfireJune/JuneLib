@@ -28,6 +28,29 @@ namespace JuneLib.Items
             player.DropPassiveItem(item);
             Object.Destroy(item.gameObject);
         }
+
+        public static bool UseFakeItem(PlayerController player, PlayerItem item)
+        {
+            PlayerItem pItem = Object.Instantiate(item.gameObject).GetComponent<PlayerItem>();
+            pItem.m_pickedUpThisRun = true;
+            pItem.encounterTrackable.SuppressInInventory = true;
+            pItem.encounterTrackable.IgnoreDifferentiator = true;
+
+            //pItem.transform.SetParent(player.transform);
+            pItem.LastOwner = player;
+            //pItem.transform.position = player.transform.position;
+            pItem.renderer.enabled = false;
+            if (pItem.CanBeUsed(player))
+            {
+                pItem.Use(player, out _);
+                if (pItem.IsCurrentlyActive && pItem is TargetedAttackPlayerItem)
+                {
+                    pItem.DoActiveEffect(player);
+                }
+                return true;
+            }
+            return false;   
+        }
     }
     public class FakeRealItemBehaviour : BraveBehaviour
     {

@@ -3,14 +3,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-//using static JuneLib.JuneLibRoomRewardAPI;
+using static JuneLib.JuneLibRoomRewardAPI;
 
 namespace JuneLib
 {
     public static class JuneLibCore
     {
-        /*private static Action<DebrisObject, RoomHandler> OnRoomClearItemDrop;
-        private static Action<RoomHandler, ValidRoomRewardContents, float> OnRoomRewardDetermineContents;*/
+        //DEPRECATED:
+        public static Action<DebrisObject, RoomHandler> OnRoomClearItemDrop;
+        public static Action<RoomHandler, ValidRoomRewardContents, float> OnRoomRewardDetermineContents;
         public static void Init()
         {
             ConsoleCommandGroup group = ETGModConsole.Commands.AddGroup("junelib", args =>
@@ -26,5 +27,10 @@ namespace JuneLib
 
             ChallengeHelper.Init();
         }
+    }
+
+    public static class MultiModDictionary
+    {
+
     }
 }

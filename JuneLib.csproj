@@ -50,7 +50,7 @@
     <Compile Include="Scripts\Items\Guns\GunMaker.cs" />
     <Compile Include="Scripts\Items\JuneLibRoomRewardAPI.cs" />
     <Compile Include="Scripts\Items\PrefixHandler.cs" />
-    <Compile Include="Scripts\Items\RegeneratingVolleyModifiers.cs" />
+    <Compile Include="Scripts\Items\Guns\RegeneratingVolleyModifiers.cs" />
     <Compile Include="Scripts\Misc\ChallengeHelper.cs" />
     <Compile Include="Scripts\Chests\ChestHelpers.cs" />
     <Compile Include="Scripts\Misc\EnemyHelpers.cs" />

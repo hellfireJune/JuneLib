@@ -1,8 +1,9 @@
-﻿using System;
+﻿using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using HarmonyLib;
+using UnityEngine;
 
 namespace JuneLib
 {
@@ -42,64 +43,77 @@ namespace JuneLib
             GunModifyThing modifier = __instance.gameObject.GetComponent<GunModifyThing>();
             if (modifier)
             {
-                
+
                 if (modifier.cachedModifiedVolley)
                 {
                     __result = modifier.cachedModifiedVolley;
-                } else
+                }
+                else
                 {
 
                     if (player != null)
                     {
 
                         SkipCheck = true;
-                        player.stats.RebuildGunVolleys(player);
-                        SkipCheck = false;
-                        if (modifier.projsOnCooldown != null)
-                        {
-                            foreach (var projMod in modifier.projsOnCooldown)
-                            {
-                                foreach (var thing in projMod.Value)
-                                {
-                                    __result.projectiles.Add(thing);
-                                }
-                            }
-                        }
+                        ProjectileVolleyData volley = __instance.Volley;
+                        Debug.Log(volley.projectiles.Count);
                         ModifyProjArgs projArgs = new ModifyProjArgs() { projs = new Dictionary<string, List<ProjectileModule>>() };
                         List<ProjectileModule> newMods = new List<ProjectileModule>();
                         if (player.GetJEvents().ConstantModifyGunVolley != null)
                         {
-                            player.GetJEvents().ConstantModifyGunVolley?.Invoke(player, __instance, __result, projArgs);
+                            player.GetJEvents().ConstantModifyGunVolley?.Invoke(player, __instance, volley, projArgs);
                             if (modifier.projsOnCooldown == null)
                             {
                                 modifier.projsOnCooldown = new Dictionary<string, List<ProjectileModule>>();
+                            }
+                            foreach (var projMod in modifier.projsOnCooldown)
+                            {
+                                foreach (var thing in projMod.Value)
+                                {
+                                    if (!volley.projectiles.Contains(thing))
+                                    {
+                                        volley.projectiles.Add(thing);
+                                    }
+                                }
                             }
 
                             foreach (var stuff in projArgs.projs)
                             {
                                 if (modifier.projsOnCooldown.ContainsKey(stuff.Key))
                                 {
-                                } else
+                                    //Debug.Log("contains key " + stuff.Key);
+                                }
+                                else
                                 {
                                     //ETGModConsole.Log("is worth removing");
-                                    foreach(var mod in stuff.Value)
+                                    foreach (var mod in stuff.Value)
                                     {
-                                        __result.projectiles.Add(mod);
+                                        volley.projectiles.Add(mod);
                                     }
                                     modifier.projsOnCooldown[stuff.Key] = stuff.Value;
                                 }
                             }
                         }
-                        modifier.cachedModifiedVolley = __result;
+                        modifier.cachedModifiedVolley = volley;
                         //modifier.projsOnCooldown = projArgs.projs;
 
-                        
+                        __result = volley;
+                        SkipCheck = false;
+                        __instance.ReinitializeModuleData(__result);
                     }
-                    __instance.ReinitializeModuleData(__result);
                 }
             }
         }
         public static bool SkipCheck = false;
+        public static bool Log = false;
+
+        [HarmonyPatch(typeof(PlayerStats), nameof(PlayerStats.RebuildGunVolleys))]
+        [HarmonyPrefix]
+        public static void ILove() { SkipCheck = true; Log = true; }
+
+        [HarmonyPatch(typeof(PlayerStats), nameof(PlayerStats.RebuildGunVolleys))]
+        [HarmonyPostfix]
+        public static void DoingThis() { SkipCheck = false; Log = false; }
 
         public static List<ProjectileModule> AllAvailableModules(ProjectileVolleyData data, Gun gun)
         {
@@ -118,6 +132,30 @@ namespace JuneLib
         public class ModifyProjArgs : EventArgs
         {
             public Dictionary<string, List<ProjectileModule>> projs;
+        }
+
+        public static ProjectileVolleyData OnTheGoModifyVolley(ProjectileVolleyData data, PlayerController owner, Gun gun = null)
+        {
+            ProjectileVolleyData newVolley = ScriptableObject.CreateInstance<ProjectileVolleyData>();
+            newVolley.InitializeFrom(data);
+
+            owner.stats.ModVolley(owner, newVolley);
+            ModifyProjArgs projArgs = new ModifyProjArgs() { projs = new Dictionary<string, List<ProjectileModule>>() };
+            if (owner.GetJEvents().ConstantModifyGunVolley != null)
+            {
+                owner.GetJEvents().ConstantModifyGunVolley?.Invoke(owner, gun, newVolley, projArgs);
+
+                foreach (var stuff in projArgs.projs)
+                {
+                    //ETGModConsole.Log("is worth removing");
+                    foreach (var mod in stuff.Value)
+                    {
+                        newVolley.projectiles.Add(mod);
+                    }
+                }
+            }
+
+            return newVolley;
         }
     }
 
@@ -141,6 +179,9 @@ namespace JuneLib
                         if (m_gun.m_moduleData[module].onCooldown)
                         {
                             worthRemoving = false;
+                        } else
+                        {
+                            m_gun.Volley.projectiles.Remove(module);
                         }
                     }
                     //ETGModConsole.Log($"{entry.Key}, {worthRemoving}");
