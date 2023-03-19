@@ -117,6 +117,9 @@ namespace JuneLib.Items
             temp.SpecialClassBasedThing(pobject);
             temp.PostInitAction?.Invoke(pobject);
             //ETGModConsole.Log($"{temp.Name}, {temp.SpriteResource}");
+            keyValuePairs.Add(pobject, assembly);
         }
+
+        internal static Dictionary<PickupObject, Assembly> keyValuePairs = new Dictionary<PickupObject, Assembly>();
     }
 }

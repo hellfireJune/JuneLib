@@ -56,7 +56,7 @@ namespace JuneLib
 
                         SkipCheck = true;
                         ProjectileVolleyData volley = __instance.Volley;
-                        Debug.Log(volley.projectiles.Count);
+                        //Debug.Log(volley.projectiles.Count);
                         ModifyProjArgs projArgs = new ModifyProjArgs() { projs = new Dictionary<string, List<ProjectileModule>>() };
                         List<ProjectileModule> newMods = new List<ProjectileModule>();
                         if (player.GetJEvents().ConstantModifyGunVolley != null)

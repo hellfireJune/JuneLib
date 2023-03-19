@@ -18,7 +18,7 @@ namespace JuneLib
     public class JuneLibModule : BaseUnityPlugin
     {
         public const string MOD_NAME = "JuneLib";
-        public const string VERSION = "1.0.6";
+        public const string VERSION = "1.0.7";
         public static readonly string TEXT_COLOR = "#FFFFFF";
         public static readonly string ASSEMBLY_NAME = "JuneLib";
         public const string GUID = "blazeykat.etg.junelib";
@@ -42,5 +42,10 @@ namespace JuneLib
             }
             catch (Exception e) { ETGModConsole.Log(e.ToString()); }
         }
+
+        /*
+         Changelog:
+        - fixed WMITF making all JuneLib mods' items show up as "from JuneLib"
+        - fixed some debuglog stuff appearing in the console constantly*/
     }
 }
