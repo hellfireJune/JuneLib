@@ -51,16 +51,14 @@ namespace JuneLib.Items
     public static class ItemTemplateManager
     {
         internal static Dictionary<Type, Action<ItemTemplate, PickupObject>> AdditionalEffects = new Dictionary<Type, Action<ItemTemplate, PickupObject>>();
-        
+
+        public static int count = 0;
         public static void Init(Assembly assembly = null)
         {
             if (assembly == null) { assembly = Assembly.GetCallingAssembly(); }
             List<Type> items = assembly.GetTypes().Where(type => !type.IsAbstract && typeof(PickupObject).IsAssignableFrom(type)).ToList();
 
-            if (JuneLibModule.debugLog)
-            {
-                ETGModConsole.Log($"{PrefixHandler.pairs[assembly].ToUpper()} Items: {items.Count}");
-            }
+            count = 0;
             foreach (var item in items)
             {
                 List<MemberInfo> templates = item.GetMembers(BindingFlags.Static | BindingFlags.Public).Where(member => member.GetValueType() == typeof(ItemTemplate) || typeof(ItemTemplate).IsAssignableFrom(member.GetValueType())).ToList();
@@ -68,6 +66,10 @@ namespace JuneLib.Items
                 {
                     ((ItemTemplate)((FieldInfo)template).GetValue(item)).InitTemplate(assembly);
                 }
+            }
+            if (JuneLibModule.debugLog)
+            {
+                ETGModConsole.Log($"{PrefixHandler.pairs[assembly].ToTitleCaseInvariant()} Items: {count} / {items.Count}");
             }
             //ETGModConsole.Log(items.Count);
         }
@@ -112,7 +114,7 @@ namespace JuneLib.Items
             if (temp.Quality == ItemQuality.EXCLUDED)
             {
                 pobject.RemovePickupFromLootTables();
-            }
+            } else { count++; }
 
             temp.SpecialClassBasedThing(pobject);
             temp.PostInitAction?.Invoke(pobject);

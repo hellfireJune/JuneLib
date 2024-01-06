@@ -1,8 +1,6 @@
 ﻿using Dungeonator;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 
 namespace JuneLib
@@ -68,6 +66,30 @@ namespace JuneLib
             }
             list.AddRange(self.GetNearbyInteractables(position, distance));
             return list;
+        }
+
+        public static void DoToNearbyEnemiesBetter(this RoomHandler self, Vector3 pos, float distance, Action<AIActor, float> effect, RoomHandler.ActiveEnemyType type = RoomHandler.ActiveEnemyType.All)
+        {
+            List<AIActor> actors = self.GetActiveEnemies(type);
+            for (int i = 0; i < actors.Count; i++)
+            {
+                AIActor actor = actors[i];
+                if (!actor || !actor.specRigidbody)
+                {
+                    continue;
+                }
+
+                PixelCollider hitboxPixelCollider = actor.specRigidbody.HitboxPixelCollider;
+                if (hitboxPixelCollider != null)
+                {
+                    Vector2 vector = BraveMathCollege.ClosestPointOnRectangle(pos, hitboxPixelCollider.UnitBottomLeft, hitboxPixelCollider.UnitDimensions);
+                    float num = Vector2.Distance(pos, vector);
+                    if (num < distance)
+                    {
+                        effect(actor, num);
+                    }
+                }
+            }
         }
     }
 }

@@ -29,7 +29,7 @@ namespace JuneLib
             ETGModMainBehaviour.WaitForGameManagerStart(GMStart);
         }
 
-        public static bool debugLog = false;
+        public static bool debugLog = true;
 
         public void GMStart(GameManager g)
         {
@@ -45,7 +45,8 @@ namespace JuneLib
 
         /*
          Changelog:
-        - fixed WMITF making all JuneLib mods' items show up as "from JuneLib"
-        - fixed some debuglog stuff appearing in the console constantly*/
+        - modifying volleys now does it for like final volleys and reload volleys too. also should allow setting up other things to get modified volleywise
+        -more jevents
+        -added "dotonearbyenemiesbutbetter" to roomtoolsy*/
     }
 }

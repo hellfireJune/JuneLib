@@ -45,6 +45,10 @@
     <Compile Include="Scripts\Items\BaseAdvancedGrappleModule.cs" />
     <Compile Include="Scripts\Items\CustomChargeTypeItem.cs" />
     <Compile Include="Scripts\Items\Familiars\SimpleCompanionBehaviours.cs" />
+    <Compile Include="Scripts\Items\Guns\ModuleOverride\ClipModifierBase.cs" />
+    <Compile Include="Scripts\Items\Guns\ModuleOverride\GunHooks.cs" />
+    <Compile Include="Scripts\Items\Guns\ModuleOverride\PlayerClipModifierHolder.cs" />
+    <Compile Include="Scripts\Items\Guns\ModuleOverride\GunClipModifierHolder.cs" />
     <Compile Include="Scripts\Items\JuneLibLootEngineModificationAPI.cs" />
     <Compile Include="Scripts\Items\OverrideItemCanBeUsed.cs" />
     <Compile Include="Scripts\Items\Guns\GunMaker.cs" />
@@ -67,6 +71,7 @@
     <Compile Include="Scripts\UI\CustomHealth\HealthHaverHooks.cs" />
     <Compile Include="Scripts\UI\CustomHealth\JuneHealthHaver.cs" />
     <Compile Include="Scripts\UI\CustomHealth\JuneUIHeartController.cs" />
+    <Compile Include="Scripts\Items\Guns\ModuleOverride\AmmoTiledSpriteOverrider.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="0Harmony, Version=2.9.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -148,6 +153,9 @@
     <EmbeddedResource Include="Resources\GunSprites\WeaponCollection\junelib_placeholdergun_fire_001.json" />
     <EmbeddedResource Include="Resources\GunSprites\WeaponCollection\junelib_placeholdergun_fire_002.json" />
     <EmbeddedResource Include="Resources\GunSprites\WeaponCollection\junelib_placeholdergun_idle_001.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Scripts\UI\AmmoStuff\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
