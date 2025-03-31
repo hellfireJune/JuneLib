@@ -20,6 +20,7 @@ namespace JuneLib
             {
                 return;
             }
+            if (!__instance.HasBeenPickedUp) { return;}
             __instance.gameObject.AddComponent<HasCheckedForGunModifyThing>();
             GameActor owner = __instance.CurrentOwner;
             if (owner && owner is PlayerController)
@@ -219,7 +220,6 @@ namespace JuneLib
             if (player.GetJEvents().ConstantModifyGunVolley != null)
             {
                 player.GetJEvents().ConstantModifyGunVolley?.Invoke(player, gun, volley, projArgs);
-                Debug.Log($"is running the stuff for {idx}");
                 if (modifier.projsOnCooldown == null)
                 {
                     modifier.projsOnCooldown = new Dictionary<string, List<ProjectileModule>>();

@@ -49,6 +49,7 @@
     <Compile Include="Scripts\Items\Guns\ModuleOverride\GunHooks.cs" />
     <Compile Include="Scripts\Items\Guns\ModuleOverride\PlayerClipModifierHolder.cs" />
     <Compile Include="Scripts\Items\Guns\ModuleOverride\GunClipModifierHolder.cs" />
+    <Compile Include="Scripts\Items\Guns\ModuleOverride\TestClipModifier.cs" />
     <Compile Include="Scripts\Items\JuneLibLootEngineModificationAPI.cs" />
     <Compile Include="Scripts\Items\OverrideItemCanBeUsed.cs" />
     <Compile Include="Scripts\Items\Guns\GunMaker.cs" />
@@ -134,6 +135,9 @@
     <Reference Include="UnityEngine.ParticleSystemModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>bin\Debug\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>D:\SteamLibrary\steamapps\common\Enter the Gungeon\EtG_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

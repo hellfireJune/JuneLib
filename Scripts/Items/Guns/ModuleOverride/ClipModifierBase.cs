@@ -6,7 +6,7 @@ using static JuneLib.GunClipModifiers;
 
 namespace JuneLib
 {
-    public abstract class ClipModifierBase
+    public abstract class ClipModifierBase : IComparable<ClipModifierBase>, ICloneable
     {
         public static T Initialize<T>(string identifier) where T : ClipModifierBase, new()
         {
@@ -30,22 +30,27 @@ namespace JuneLib
 
         public bool InnateToGun;
         public bool BuildOnReload = true;
+        public ProjectileModule OverrideIcon;
+        public float Priority = 0;
 
-        public Gun GetParentGun()
+        public List<ModuleInsertData> BuildClipModifier(ProjectileModule baseModule)
         {
-            if (parent == null)
-            {
-                return null;
-            }
-            return parent.GetComponent<Gun>();
-        }
-
-        public void BuildClipModifier(ProjectileModule baseModule)
-        {
-            if (container != null)
+            container.InsertedDatas.Clear();
+            if (container != null && parent != null)
             {
                 AddVolleys(container, parent.Gun, parent.Owner, baseModule);
             }
+            return container.InsertedDatas;
+        }
+
+        public int CompareTo(ClipModifierBase other)
+        {
+            return other.Priority.CompareTo(Priority);
+        }
+
+        public object Clone()
+        {
+            return this.MemberwiseClone();
         }
     }
 }

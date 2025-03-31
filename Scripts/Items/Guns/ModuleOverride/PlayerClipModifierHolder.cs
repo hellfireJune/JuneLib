@@ -13,6 +13,10 @@ namespace JuneLib
         public void Start()
         {
             m_owner = GetComponent<PlayerController>();
+            if (GunClipModifierHolder.AddDebug)
+            {
+                AddClipModifier(new TestClipModifier());
+            }
         }
 
         public void AddClipModifier(ClipModifierBase modifier)
@@ -28,6 +32,15 @@ namespace JuneLib
                 modifiers.Remove(modifier);
                 RebuildClipModifiers(m_owner);
             }
+        }
+
+        public GunClipModifierHolder GetCurrentGunModifier()
+        {
+            if (m_owner.CurrentGun)
+            {
+                return m_owner.CurrentGun.GetComponent<GunClipModifierHolder>();
+            }
+            return null;
         }
 
         public void RebuildClipModifiers(PlayerController owner)
@@ -47,11 +60,11 @@ namespace JuneLib
                 {
                     if (module == gun.DefaultModule || ( module.IsDuctTapeModule && module.ammoCost > 0))
                     {
-                        if (!gunMod.modifiers.ContainsKey(module))
+                        if (!gunMod.modifiers.ContainsKey(module.runtimeGuid))
                         {
-                            gunMod.InitializeForModule(module);
+                            gunMod.InitializeForModule(module, module == gun.DefaultModule, gun.Volley);
                         }
-                        var clipMod = gunMod.modifiers[module];
+                        var clipMod = gunMod.modifiers[module.runtimeGuid];
 
                         clipMod.ReEvaluateModifiers(modifiers);
                     }

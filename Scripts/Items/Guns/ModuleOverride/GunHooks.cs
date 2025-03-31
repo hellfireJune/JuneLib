@@ -11,25 +11,98 @@ namespace JuneLib
     [HarmonyPatch]
     public static class GunHooks
     {
+        public static int ModifierlessGetModNumberClipShot(this ProjectileModule module, GameActor owner)
+        {
+            SkipClipNum = true;
+            int modNumber = module.GetModNumberOfShotsInClip(owner);
+            SkipClipNum = false;
+            return modNumber;
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(ProjectileModule), nameof(ProjectileModule.GetModNumberOfShotsInClip))]
+        public static void GetModClipNum(ProjectileModule __instance, ref int __result, GameActor owner)
+        {
+            if (SkipClipNum || !(owner is PlayerController player))
+            {
+                return;
+            }
+            //Debug.Log("owner is player");
+            var holder = owner.GetComponent<PlayerClipModifierHolder>();
+            if (!holder) { return; } //Debug.Log("owner has the component");
+            var projmodGuid = __instance.runtimeGuid;
+            var gun = player.inventory.AllGuns.Where(g => g != null && ((g.Volley && g.Volley.projectiles.Contains(__instance)) || g.DefaultModule == __instance)).FirstOrDefault();
+            if (!gun) { return; } //Debug.Log("gun exists");
+            var gunHolder = gun.GetComponent<GunClipModifierHolder>();
+            if (gunHolder && gunHolder.modifiers != null)
+            {
+                //Debug.Log("doing the final thing");
+                var modifier = gunHolder.GetModifier(__instance.runtimeGuid);
+                if (modifier != null)
+                {
+                    __result += modifier.CurrentBonusClipSize;
+                }
+                //Debug.Log(modifier == null);
+            }
+        }
+
+        public static bool SkipClipNum = false;
+
+
         [HarmonyPostfix]
         [HarmonyPatch(typeof(Gun), nameof(Gun.ReinitializeModuleData))]
         public static void AddMoreModuleData(Gun __instance)
         {
             var holder = __instance.GetComponent<GunClipModifierHolder>();
-            if (!holder) { return; }
+            if (!holder || holder.modifiers == null) { return; }
             foreach (var modifiers in holder.modifiers.Values)
             {
-                foreach (var mod in modifiers.CurrentModifiers)
+                foreach (var mod in modifiers.RuntimePositionContainers)
                 {
-                    if (mod.ModifierPositions != null)
+                    if (mod.InsertedDatas != null)
                     {
-                        foreach (var position in mod.ModifierPositions)
+                        foreach (var position in mod.InsertedDatas)
                         {
                             foreach (var projectiles in position.RuntimeVolley.projectiles)
                             {
+                                if (__instance.m_moduleData.ContainsKey(projectiles)) { continue; }
                                 ModuleShootData moduleShootData = new ModuleShootData();
                                 moduleShootData.numberShotsFired = 0;
                                 __instance.m_moduleData.Add(projectiles, moduleShootData);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Gun), nameof(Gun.FinishReload))]
+        public static void OnFinishReload(Gun __instance)
+        {
+            var holder = __instance.GetComponent<GunClipModifierHolder>();
+            if (!holder) { return; }
+
+            if (holder.ShouldAddModifiers())
+            {
+                holder.ReloadRebuild(false);
+
+                //reset num fired coz i have to do that manually lol
+                foreach (var mod in holder.modifiers.Values)
+                {
+                    var hostProjMod = mod.hostProjectile;
+                    int numberShotsFired = Math.Max(hostProjMod.GetModNumberOfShotsInClip(__instance.CurrentOwner) - __instance.ammo, 0);
+                    foreach (var containers in mod.RuntimePositionContainers)
+                    {
+                        foreach (var insertData in containers.InsertedDatas)
+                        {
+                            foreach (var projMod in insertData.RuntimeVolley.projectiles)
+                            {
+                                if (__instance.m_moduleData.ContainsKey(projMod))
+                                {
+                                    __instance.m_moduleData[projMod].numberShotsFired = numberShotsFired;
+                                    __instance.m_moduleData[projMod].needsReload = false;
+                                }
                             }
                         }
                     }
@@ -41,6 +114,7 @@ namespace JuneLib
         [HarmonyPatch(typeof(Gun), nameof(Gun.Attack))]
         public static bool OverrideGunAttack(Gun __instance, ref Gun.AttackResult __result)
         {
+            Debug.Log("calling main gun attack method");
             var holder = __instance.GetComponent<GunClipModifierHolder>();
             if (holder == null)
             {
@@ -57,20 +131,28 @@ namespace JuneLib
                 return true;
             }
 
-            GunClipModifiers.InsertData overrideVolley = holder.GetThing(out ProjectileModule mod);
-            if (overrideVolley == null)
+            ModuleInsertData data = holder.GetNextTypeToFire(out ProjectileModule mod);
+            Debug.Log(data == null ? "null" : data.DataType.ToString());
+            if (data == null || data.DataType != ModuleInsertData.InsertDataType.NEW_STUFF)
             {
                 return true;
             }
+            Debug.Log("one");
 
             ProjectileVolleyData cooldownVolley = __instance.Volley;
+            if (__instance.Volley == null)
+            {
+                return true;
+            }
             if (__instance.modifiedFinalVolley != null && __instance.DefaultModule.HasFinalVolleyOverride() && __instance.DefaultModule.IsFinalShot(__instance.m_moduleData[__instance.DefaultModule], __instance.CurrentOwner))
             {
                 cooldownVolley = __instance.modifiedFinalVolley;
             }
+            Debug.Log("two");
 
-            bool flag = __instance.InitialFireFakeVolley(overrideVolley.RuntimeVolley, cooldownVolley, mod.IsDuctTapeModule);
+            bool flag = __instance.InitialFireFakeVolley(data.RuntimeVolley, cooldownVolley, mod.IsDuctTapeModule);
             __instance.m_midBurstFire = false;
+            Debug.Log("three");
 
             for (int i = 0; i < __instance.Volley.projectiles.Count; i++)
             {
@@ -98,12 +180,79 @@ namespace JuneLib
         internal static bool InitialFireFakeVolley(this Gun gun, ProjectileVolleyData volley, ProjectileVolleyData cooldownReference, bool ducttape)
         {
             bool shouldEvenFire = false;
+            Debug.Log("cooldown stuff");
+            Debug.Log(cooldownReference.projectiles.Count);
             foreach (var proj in cooldownReference.projectiles)
             {
-                if (!gun.m_moduleData[proj].onCooldown && !proj.IsDuctTapeModule == ducttape)
+                if (!gun.m_moduleData[proj].onCooldown && proj.IsDuctTapeModule == ducttape)
                 {
                     shouldEvenFire = true;
-                    CustomModuleCooldown(gun, proj, cooldownReference.projectiles[0]);
+                    Debug.Log("is this even working? but genuinely?");
+                    gun.StartCoroutine(CustomModuleCooldown(gun, proj, cooldownReference.projectiles[0]));
+                }
+            }
+
+            bool playEffects = true;
+            bool flag2 = false;
+            bool flag3 = true;
+            bool flag4 = false;
+            for (int i = 0; i < volley.projectiles.Count; i++)
+            {
+                ProjectileModule projectileModule = volley.projectiles[i];
+                if (shouldEvenFire)
+                {
+                    if (!gun.UsesRechargeLikeActiveItem || gun.m_remainingActiveCooldownAmount <= 0f)
+                    {
+                        if (volley.ModulesAreTiers)
+                        {
+                            if (projectileModule.IsDuctTapeModule)
+                            {
+                                flag3 = true;
+                            }
+                            else
+                            {
+                                int num = (projectileModule.CloneSourceIndex < 0) ? i : projectileModule.CloneSourceIndex;
+                                if (num == gun.m_currentStrengthTier)
+                                {
+                                    playEffects = !flag4;
+                                    flag3 = true;
+                                    flag4 = true;
+                                }
+                                else
+                                {
+                                    playEffects = false;
+                                    flag3 = false;
+                                }
+                            }
+                        }
+                        if (flag3)
+                        {
+                            flag2 |= gun.HandleSpecificInitialGunShoot(projectileModule, null, null, playEffects);
+                        }
+                        playEffects = false;
+                    }
+                }
+            }
+            return flag2;
+        }
+
+        private static bool ContinueFireFakeVolley(this Gun gun, ProjectileVolleyData Volley, ProjectileVolleyData cooldownReference, bool ducttape, bool canAttack = true)
+        {
+            bool shouldEvenFire = false;
+            Debug.Log("starting the fire thing. aef");
+            foreach (var proj in cooldownReference.projectiles)
+            {
+                Debug.Log(gun.m_moduleData[proj].onCooldown);
+                Debug.Log(proj.IsDuctTapeModule);
+                Debug.Log(proj.shootStyle != ProjectileModule.ShootStyle.SemiAutomatic);
+                if (!gun.m_moduleData[proj].onCooldown && proj.IsDuctTapeModule == ducttape && proj.shootStyle != ProjectileModule.ShootStyle.SemiAutomatic)
+                {
+                    shouldEvenFire = true;
+                    Debug.Log("continue gun fire: wokring?");
+                    if (proj.shootStyle == ProjectileModule.ShootStyle.Burst || proj.shootStyle == ProjectileModule.ShootStyle.Automatic)
+                    {
+                        gun.StartCoroutine(CustomModuleCooldown(gun, proj, cooldownReference.projectiles[0]));
+                    }
                 }
             }
 
@@ -111,51 +260,56 @@ namespace JuneLib
             bool flag = false;
             bool flag2 = false;
             bool flag3 = true;
-            bool flag4 = false;
-            for (int i = 0; i < volley.projectiles.Count; i++)
+            for (int i = 0; i < Volley.projectiles.Count; i++)
             {
-                ProjectileModule projectileModule = volley.projectiles[i];
-                if (!gun.m_moduleData[projectileModule].needsReload)
+                ProjectileModule projectileModule = Volley.projectiles[i];
+                if (shouldEvenFire)
                 {
+
                     flag = true;
-                    if (shouldEvenFire)
+                    if (!gun.UsesRechargeLikeActiveItem || gun.m_remainingActiveCooldownAmount <= 0f)
                     {
-                        if (!gun.UsesRechargeLikeActiveItem || gun.m_remainingActiveCooldownAmount <= 0f)
+                        if (Volley.ModulesAreTiers)
                         {
-                            if (volley.ModulesAreTiers)
+                            if (projectileModule.IsDuctTapeModule)
                             {
-                                if (projectileModule.IsDuctTapeModule)
+                                flag3 = true;
+                            }
+                            else
+                            {
+                                int num = (projectileModule.CloneSourceIndex < 0) ? i : projectileModule.CloneSourceIndex;
+                                if (num == gun.m_currentStrengthTier)
                                 {
+                                    playEffects = true;
                                     flag3 = true;
                                 }
                                 else
                                 {
-                                    int num = (projectileModule.CloneSourceIndex < 0) ? i : projectileModule.CloneSourceIndex;
-                                    if (num == gun.m_currentStrengthTier)
-                                    {
-                                        playEffects = !flag4;
-                                        flag3 = true;
-                                        flag4 = true;
-                                    }
-                                    else
-                                    {
-                                        playEffects = false;
-                                        flag3 = false;
-                                    }
+                                    playEffects = false;
+                                    flag3 = false;
                                 }
                             }
-                            if (flag3)
-                            {
-                                flag2 |= gun.HandleSpecificInitialGunShoot(projectileModule, null, null, playEffects);
-                            }
+                        }
+                        if (projectileModule.isExternalAddedModule)
+                        {
                             playEffects = false;
                         }
+                        if (flag3)
+                        {
+                            Debug.Log($"is this ever getting aclled? {canAttack}");
+                            flag2 |= gun.HandleSpecificContinueGunShoot(projectileModule, canAttack, null, playEffects);
+                        }
+                        if (flag2)
+                        {
+                            playEffects = false;
+                        }
+
                     }
                 }
             }
             if (!flag)
             {
-                Debug.LogError("June flavoured error message: Help! Gun shoot unloaded thing? So icky...");
+                Debug.LogError("(June): Attempting to continue fire without being loaded. This should never happen.");
             }
             return flag2;
         }
@@ -164,6 +318,7 @@ namespace JuneLib
         [HarmonyPatch(typeof(Gun), nameof(Gun.ContinueAttack))]
         public static bool OverrideContinueGunShoot(Gun __instance, ref bool __result, bool canAttack, ProjectileData overrideProjectileData)
         {
+            Debug.Log("calling continue gun attack method");
             var holder = __instance.GetComponent<GunClipModifierHolder>();
             if (holder == null)
             {
@@ -183,24 +338,32 @@ namespace JuneLib
             {
                 return true;
             }
-            GunClipModifiers.InsertData overrideVolley = holder.GetThing(out ProjectileModule mod);
-            if (overrideVolley == null)
+            ModuleInsertData overrideVolley = holder.GetNextTypeToFire(out ProjectileModule mod);
+            if (overrideVolley == null || overrideVolley.DataType != ModuleInsertData.InsertDataType.NEW_STUFF)
             {
-                return false;
+                return true;
             }
             ProjectileVolleyData newVolley = overrideVolley.RuntimeVolley;
+            if (!newVolley)
+            {
+                return true;
+            }
 
-            bool giveUp = true;
+            bool onlySemi = true;
             foreach (ProjectileModule module in newVolley.projectiles)
             {
-                if (module.shootStyle == ProjectileModule.ShootStyle.Automatic || module.shootStyle == ProjectileModule.ShootStyle.Charged ||
-                    module.shootStyle == ProjectileModule.ShootStyle.Charged)
+                if (!__instance.m_isCurrentlyFiring)
                 {
-                    giveUp = false;
+                    if (module.shootStyle == ProjectileModule.ShootStyle.Automatic || module.shootStyle == ProjectileModule.ShootStyle.Charged ||
+                        module.shootStyle == ProjectileModule.ShootStyle.Charged)
+                    {
+                        __result = __instance.Attack() == Gun.AttackResult.Success;
+                        return false;
+                    }
                 }
+                else if (module.shootStyle != ProjectileModule.ShootStyle.SemiAutomatic) { onlySemi = false; }
             }
-            if (giveUp) { return true; }
-
+            if (onlySemi) { __instance.ClearBurstState(); return false; }
 
             if (!__instance.m_playedEmptyClipSound && __instance.ClipShotsRemaining == 0)
             {
@@ -242,7 +405,7 @@ namespace JuneLib
             }
             if (__instance.CanCriticalFire)
             {
-                float num = (float)PlayerStats.GetTotalCoolness() / 100f;
+                float num = PlayerStats.GetTotalCoolness() / 100f;
                 if (__instance.m_owner.IsStealthed)
                 {
                     num = 10f;
@@ -262,11 +425,11 @@ namespace JuneLib
                 if (__instance.CheckHasLoadedModule(__instance.Volley))
                 {
                     ProjectileVolleyData volley = newVolley;
-                    flag = __instance.HandleContinueGunShoot(volley, canAttack, overrideProjectileData);
+                    flag = __instance.ContinueFireFakeVolley(volley, __instance.Volley, mod.IsDuctTapeModule);
                     __instance.m_midBurstFire = false;
-                    for (int i = 0; i < __instance.Volley.projectiles.Count; i++)
+                    for (int i = 0; i < newVolley.projectiles.Count; i++)
                     {
-                        ProjectileModule projectileModule = __instance.Volley.projectiles[i];
+                        ProjectileModule projectileModule = newVolley.projectiles[i];
                         if (projectileModule.shootStyle == ProjectileModule.ShootStyle.Burst && __instance.m_moduleData[projectileModule].numberShotsFiredThisBurst < projectileModule.burstShotCount)
                         {
                             __instance.m_midBurstFire = true;
@@ -282,11 +445,11 @@ namespace JuneLib
             else
             {
                 __instance.CeaseAttack(false, null);
-                __instance.m_midBurstFire = false;
-                if (__instance.singleModule.shootStyle == ProjectileModule.ShootStyle.Burst && __instance.m_moduleData[__instance.singleModule].numberShotsFiredThisBurst < __instance.singleModule.burstShotCount)
-                {
-                    __instance.m_midBurstFire = true;
-                }
+                //__instance.m_midBurstFire = false;
+                //if (__instance.singleModule.shootStyle == ProjectileModule.ShootStyle.Burst && __instance.m_moduleData[__instance.singleModule].numberShotsFiredThisBurst < __instance.singleModule.burstShotCount)
+                //{
+                //    __instance.m_midBurstFire = true;
+                //}
             }
             if (flag && __instance.OnPostFired != null && __instance.m_owner is PlayerController)
             {
@@ -301,6 +464,10 @@ namespace JuneLib
 
         public static IEnumerator CustomModuleCooldown(Gun gun, ProjectileModule mod, ProjectileModule fakedule)
         {
+            Debug.Log("setting cooldown");
+            Debug.Log(gun.m_moduleData[mod].numberShotsFired);
+            gun.m_moduleData[mod].numberShotsFired++;
+
             gun.m_moduleData[mod].onCooldown = true;
             float elapsed = 0f;
             float fireMultiplier = (!(gun.m_owner is PlayerController)) ? 1f : (gun.m_owner as PlayerController).stats.GetStatValue(PlayerStats.StatType.RateOfFire);
@@ -332,28 +499,6 @@ namespace JuneLib
             }
             yield break;
 
-        }
-
-        public static GunClipModifiers.InsertData GetThing(this GunClipModifierHolder holder, out ProjectileModule mod)
-        {
-            GunClipModifiers.InsertData overrideVolley = null;
-            mod = null;
-            foreach (var activeMod in holder.modifiers)
-            {
-                int type = holder.GetNextTypeToFire(activeMod.Key);
-
-                if (type >= 0)
-                {
-                    var currentMod = activeMod.Value.CurrentModifiers[type];
-                    var pos = holder.GetPos(activeMod.Key);
-
-                    overrideVolley = currentMod.ModifierPositions.FirstOrDefault(help => help.Position == pos && !help.Fired);
-                    mod = activeMod.Key;
-                    break;
-                }
-
-            }
-            return overrideVolley;
         }
     }
 }

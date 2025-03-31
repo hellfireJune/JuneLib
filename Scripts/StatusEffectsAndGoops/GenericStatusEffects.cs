@@ -54,32 +54,5 @@ namespace JuneLib.Status
                 PlaysVFXOnActor = false,
             };
         }
-
-        public class GameActorOnDeathEffect : GameActorEffect
-        {
-            protected Type onDeathBehaviour;
-            public OnDeathBehavior.DeathType deathType;
-            protected OnDeathBehavior onDeath;
-            public Action<OnDeathBehavior> PostApplyAction;
-            public GameActorOnDeathEffect(Type behaviour)
-            {
-                onDeathBehaviour = behaviour;
-            }
-
-            public override void OnEffectApplied(GameActor actor, RuntimeGameActorEffectData effectData, float partialAmount = 1)
-            {
-                base.OnEffectApplied(actor, effectData, partialAmount);
-                onDeath = actor.gameObject.AddComponent(onDeathBehaviour) as OnDeathBehavior;
-                PostApplyAction?.Invoke(onDeath);
-                onDeath.deathType = deathType;
-            }
-
-            public override void OnEffectRemoved(GameActor actor, RuntimeGameActorEffectData effectData)
-            {
-                base.OnEffectRemoved(actor, effectData);
-                if (onDeath != null)
-                UnityEngine.Object.Destroy(onDeath);
-            }
-        }
     }
 }

@@ -1,26 +1,82 @@
-﻿using HarmonyLib;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using UnityEngine;
+using static JuneLib.GunClipModifiers;
 
 namespace JuneLib
 {
 
-    public class GunClipModifierHolder : BraveBehaviour
+    public class GunClipModifierHolder : MonoBehaviour
     {
         public Gun Gun { get; private set; }
         public PlayerController Owner { get; private set; }
-        internal static void Initialize(Gun gun, PlayerController owner)
+
+        public static GunClipModifierHolder Initialize(Gun gun, PlayerController owner)
         {
-            GunClipModifierHolder mod = gun.gameObject.AddComponent<GunClipModifierHolder>();
+            
+            GunClipModifierHolder mod = gun.gameObject.GetOrAddComponent<GunClipModifierHolder>();
             mod.Gun = gun;
-            mod.Owner = owner;
+
+            Debug.Log(gun.DefaultModule.runtimeGuid);
+            Debug.Log(gun.DefaultModule.CloneSourceIndex);
+            Debug.Log(gun.Volley.projectiles.Count);
+            Debug.Log(mod.modifiers?.Count);
+
+            if (!mod.modifiers.ContainsKey(gun.DefaultModule.runtimeGuid))
+            {
+                Debug.Log("it makes it again");
+                mod.InitializeForModule(gun.DefaultModule, true, gun.Volley);
+                if (StaticInnateModifiers.ContainsKey(gun.PickupObjectId))
+                {
+                    foreach (var modifier in StaticInnateModifiers[gun.PickupObjectId])
+                    {
+                        mod.modifiers[gun.DefaultModule.runtimeGuid].AddClipModifierToGun(modifier, true);
+                    }
+                }
+            } else
+            {
+                Debug.Log("no it doesnt");
+            }
+            if (owner)
+            {
+                mod.Owner = owner;
+                var ownerHolder = owner.GetComponent<PlayerClipModifierHolder>();
+                ownerHolder.RebuildClipModifiers(owner);
+                mod.ReloadRebuild(false);
+            }
+            Debug.Log(mod.modifiers.Count);
+            return mod;
         }
 
+        public static Dictionary<int, List<ClipModifierBase>> StaticInnateModifiers = new Dictionary<int, List<ClipModifierBase>>();
+        public static void AddInnateStaticModifier(ClipModifierBase modifier, Gun gun = null)
+        {
+            int id = PickupObjectDatabase.Instance.Objects.Count;
+            if (gun != null)
+            {
+                id = gun.PickupObjectId;
+            }
+            ETGModConsole.Log(id);
+
+            List<ClipModifierBase> mods;
+            if (!StaticInnateModifiers.ContainsKey(id))
+            {
+                mods = new List<ClipModifierBase>();
+            } else
+            {
+                mods = StaticInnateModifiers[id];
+            }
+            mods.Add(modifier);
+            StaticInnateModifiers.Add(id, mods);
+        }
+
+        public static bool hasAddedDebug = false;
+
+        public static readonly int TEST_GUN_ID = 129;
         public bool ShouldAddModifiers()
         {
-            return !Gun.IsHeroSword || !Gun.UsesRechargeLikeActiveItem;
+            return !Gun.IsHeroSword && !Gun.UsesRechargeLikeActiveItem && (!AddDebug || Gun.PickupObjectId != TEST_GUN_ID);
             //ill make these compatible maybe one day
         }
 
@@ -39,60 +95,176 @@ namespace JuneLib
             return num;
         }
 
-        public int GetNextTypeToFire(ProjectileModule module)
+        internal void InitializeForModule(ProjectileModule module, bool isDefaultModule = false, ProjectileVolleyData volley = null)
         {
-            int num = GetPos(module);
-            GunClipModifiers mod = modifiers[module];
-
-            for (int i = 0; i < mod.CurrentModifiers.Count; i++)
+            Debug.Log($"is running init for module");
+            modifiers.Add(module.runtimeGuid, new GunClipModifiers()
             {
-                var modifier = mod.CurrentModifiers[i].ModifierPositions;
-                foreach (var j in modifier)
+                parent = this,
+                hostProjectile = module,
+                isDefaultModule = isDefaultModule
+            });
+            if (volley.ModulesAreTiers)
+            {
+                foreach (var thing in volley.projectiles)
                 {
-                    if (j.Position == num)
-                    {
-                        return i;
-                    }
+                    altModifiers.Add(thing.runtimeGuid, module.runtimeGuid);
                 }
             }
-            return -1;
         }
 
-        internal void InitializeForModule(ProjectileModule module)
+        public ModuleInsertData GetNextTypeToFire(out ProjectileModule returnMod)
         {
-            modifiers.Add(module, new GunClipModifiers()
+            returnMod = null;
+
+            Debug.Log("trying to get a thing to fire");
+            foreach (var activeMod in modifiers)
             {
-                parent = this
-            });
+                returnMod = activeMod.Value.hostProjectile;
+                int num = GetPos(returnMod);
+                GunClipModifiers mod = modifiers[returnMod.runtimeGuid];
+
+                /*Debug.Log(num);
+                Debug.Log(mod.CurrentFireResults == null);
+                Debug.Log(mod.RuntimePositionContainers == null);*/
+                if (mod.CurrentFireResults.Count > num)
+                {
+                    var insert = mod.CurrentFireResults[num];
+                    Debug.Log("got a thing to fire");
+                    return insert;
+                }
+
+                /*var sortedMods = mod.PositionContainersSorted;
+                for (int i = 0; i < sortedMods.Count; i++)
+                {
+                    var modifier = sortedMods[i].InsertedDatas;
+                    int idx = 0;
+                    foreach (var j in modifier)
+                    {
+                        if (j.Position == num)
+                        {
+                            var projMod = j.RuntimeVolley.projectiles[0];
+                            if (Gun.m_moduleData.ContainsKey(projMod))
+                            {
+                                int numFired = Gun.m_moduleData[projMod].numberShotsFired;
+                                if (numFired <= idx)
+                                {
+                                    returnMod = module;
+                                    return j;
+                                }
+                            }
+                        }
+                        idx++;
+                    }
+                }*/
+            }
+            return null;
         }
 
-        public Dictionary<ProjectileModule, GunClipModifiers> modifiers = new Dictionary<ProjectileModule, GunClipModifiers>();
+        public GunClipModifiers GetModifier(string modifierKey)
+        {
+            if (!modifiers.ContainsKey(modifierKey))
+            {
+                if (altModifiers.ContainsKey(modifierKey))
+                {
+                    modifierKey = altModifiers[modifierKey];
+                } else { return null; }
+            }
+            return modifiers[modifierKey];
+        }
+
+        [SerializeField]
+        public Dictionary<string, GunClipModifiers> modifiers = new Dictionary<string, GunClipModifiers>();
+        internal Dictionary<string, string> altModifiers = new Dictionary<string, string>();
 
         public bool ShouldUpdateUI = false;
+        public static bool AddDebug = false;
+
+        public void ReloadRebuild(bool isNotFromReload = false)
+        {
+            Debug.Log($"running reload rebuild for {Gun.DisplayName}");
+            if (modifiers == null)
+            {
+                return;
+            }
+            foreach (var key in modifiers.Keys)
+            {
+                var mods = modifiers[key];
+                var projMod = mods.hostProjectile;
+                //if (mods.RuntimePositionContainers != null) { continue; }
+                for (int i = 0; i < mods.RuntimePositionContainers.Count; i++)
+                {
+                    var mod = mods.RuntimePositionContainers[i];
+                    if (mod.Modifier.BuildOnReload)
+                    {
+                        mod.Modifier.BuildClipModifier(projMod);
+                    }
+                }
+                //Now process the actual datas
+                int maxClipNum = projMod.ModifierlessGetModNumberClipShot(Owner);
+                int maxFinalShotNum = !projMod.usesOptionalFinalProjectile ? 0 : projMod.GetModifiedNumberOfFinalProjectiles(Owner);
+
+                List<ModuleInsertData> result = new List<ModuleInsertData>();
+                for (int i = 0; i < maxClipNum; i++)
+                {
+                    result.Add(new ModuleInsertData(ModuleInsertData.InsertDataType.MAIN_CLIP));
+                }
+                for (int i = 0; i < maxFinalShotNum; i++)
+                {
+                    result.Add(new ModuleInsertData(ModuleInsertData.InsertDataType.FINAL_PROJECTILE));
+                }
+
+                int add = 0;
+                var sortedMods = mods.PositionContainersSorted;
+                for (int i = 0; i < sortedMods.Count; i++)
+                {
+                    int customIdx = i + 1;
+                    var mod = sortedMods[i];
+                    foreach (var pos in mod.InsertedDatas)
+                    {
+                        pos.TypeIdx = customIdx;
+                        result.Insert(pos.Position+add, pos);
+                        add++;
+                    }
+                }
+
+                mods.CurrentBonusClipSize = add;
+                mods.CurrentFireResults = result;
+            }
+
+        }
     }
+    [SerializeField]
     public class GunClipModifiers 
     {
+        public List<ModuleInsertData> CurrentFireResults = new List<ModuleInsertData>();
+        public int CurrentBonusClipSize = 0;
+        public bool isDefaultModule = false;
         public GunClipModifierHolder parent;
         public void ReEvaluateModifiers(List<ClipModifierBase> externalModifiers)
         {
+            Debug.Log("reevaluating");
             List<RuntimeModifierContainer> modifiers = new List<RuntimeModifierContainer>();
-            Dictionary<string, List<InsertData>> keyValuePair = new Dictionary<string, List<InsertData>>();
+            Dictionary<string, List<ModuleInsertData>> keyValuePair = new Dictionary<string, List<ModuleInsertData>>();
 
-            foreach (var modifier in CurrentModifiers)
+            foreach (var modifier in RuntimePositionContainers)
             {
+                Debug.Log(modifier.Modifier.BaseIdentifier);
                 if (modifier.Modifier.InnateToGun)
                 {
                     modifiers.Add(modifier);
                 }
                 else
                 {
-                    keyValuePair.Add(modifier.Identifier, modifier.ModifierPositions);
+                    keyValuePair.Add(modifier.Identifier, modifier.InsertedDatas);
                 }
             }
 
             List<string> alreadyAdded = new List<string>();
-            foreach (var mod in externalModifiers)
+            Debug.Log(externalModifiers.Count);
+            for (int i = 0; i < externalModifiers.Count; i++)
             {
+                var mod = externalModifiers[i].Clone() as ClipModifierBase;
                 string ident = mod.BaseIdentifier;
                 int suffix = 0;
                 while (alreadyAdded.Contains($"{ident}-{suffix}"))
@@ -106,7 +278,7 @@ namespace JuneLib
                     modifiers.Add(new RuntimeModifierContainer()
                     {
                         Modifier = mod,
-                        ModifierPositions = keyValuePair[ident],
+                        InsertedDatas = keyValuePair[ident],
                         Identifier = ident
                     });
                 }
@@ -124,40 +296,73 @@ namespace JuneLib
             ClipModifierBase mod = modifier;
             mod.InnateToGun = innate;
             mod.parent = parent;
+            Debug.Log($"adding modifiers to the {parent.Gun.DisplayName}");
 
             RuntimeModifierContainer container = new RuntimeModifierContainer()
             {
                 Modifier = mod,
-                Identifier = identifier ?? mod.BaseIdentifier
+                Identifier = identifier ?? mod.BaseIdentifier,
+                InsertedDatas = new List<ModuleInsertData>()
             };
             container.Modifier.container = container;
-            CurrentModifiers.Add(container);
+            RuntimePositionContainers.Add(container);
+            container.Modifier.BuildClipModifier(hostProjectile);
         }
 
-        public List<RuntimeModifierContainer> CurrentModifiers = new List<RuntimeModifierContainer>();
+        public List<RuntimeModifierContainer> RuntimePositionContainers = new List<RuntimeModifierContainer>();
 
-        public class RuntimeModifierContainer
+        public List<RuntimeModifierContainer> PositionContainersSorted 
+        { 
+            get 
+            {
+                var list = RuntimePositionContainers;
+                list.Sort();
+                return list; 
+            } 
+        }
+
+        public ProjectileModule hostProjectile = null;
+
+        public class RuntimeModifierContainer : IComparable<RuntimeModifierContainer>
         {
             public ClipModifierBase Modifier;
-            public List<InsertData> ModifierPositions;
+            public List<ModuleInsertData> InsertedDatas;
+
             public string Identifier;
 
-            public void InsertData(int position, ProjectileVolleyData volley, ProjectileModule overrideIcon = null)
+            public int CompareTo(RuntimeModifierContainer other)
             {
-                ModifierPositions.Add(new InsertData()
+                return Modifier.CompareTo(other.Modifier);
+            }
+
+            public void InsertData(int position, ProjectileVolleyData volley)
+            {
+                Debug.Log("it's running the inserted data thing?");
+                InsertedDatas.Add(new ModuleInsertData(ModuleInsertData.InsertDataType.NEW_STUFF)
                 {
                     Position = position,
                     RuntimeVolley = volley,
-                    OverrideIcon = overrideIcon
                 });
             }
         }
-        public class InsertData
+    }
+
+    public class ModuleInsertData
+    {
+        public ModuleInsertData(InsertDataType type, int typeIdx = 0)
         {
-            public ProjectileModule OverrideIcon;
-            public ProjectileVolleyData RuntimeVolley;
-            public int Position;
-            public bool Fired;
+            DataType = type;
         }
+
+        public enum InsertDataType
+        {
+            MAIN_CLIP,
+            FINAL_PROJECTILE,
+            NEW_STUFF
+        }
+        public InsertDataType DataType { get; internal set; }
+        public ProjectileVolleyData RuntimeVolley;
+        public int Position;
+        public int TypeIdx = 0;
     }
 }

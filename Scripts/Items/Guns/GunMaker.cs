@@ -63,9 +63,9 @@ namespace JuneLib.Items
             Quality = ItemQuality.EXCLUDED;
             Class = GunClass.NONE; 
 
-            IdleFPS = 1;
-            ShootFPS = 1;
-            ReloadFPS = 1;
+            IdleFPS = 10;
+            ShootFPS = 10;
+            ReloadFPS = 10;
 
             MaxAmmo = 1;
             InfAmmo = true;

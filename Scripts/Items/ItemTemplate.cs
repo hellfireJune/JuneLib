@@ -46,6 +46,7 @@ namespace JuneLib.Items
         public string ManualSpriteKey;
 
         public Action<PickupObject> PostInitAction;
+        public Action<ItemTemplate> PreInitAction;
     }
 
     public static class ItemTemplateManager
@@ -76,6 +77,7 @@ namespace JuneLib.Items
 
         public static void InitTemplate(this ItemTemplate temp, Assembly assembly)
         {
+            temp.PreInitAction?.Invoke(temp);
             string itemName = temp.Name;
             string resourceName = temp.SpriteResource;
             GameObject obj = new GameObject(itemName);
