@@ -26,8 +26,6 @@ namespace JuneLib
             {
                 GunModifyHeart modify = __instance.gameObject.AddComponent<GunModifyHeart>();
                 modify.m_gun = __instance;
-
-                GunClipModifierHolder.Initialize(__instance, owner as PlayerController);
             }
         }
 

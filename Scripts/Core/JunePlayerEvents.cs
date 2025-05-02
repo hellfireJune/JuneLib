@@ -15,17 +15,12 @@ public static class JunePlayerEvents
         CustomActions.OnNewPlayercontrollerSpawned += player =>
         {
             player.gameObject.AddComponent<JEventsComponent>();
-			player.gameObject.AddComponent<PlayerClipModifierHolder>();
         };
     }
 
     internal static JEventsComponent GetJEvents(this PlayerController player)
     {
         return player.GetComponent<JEventsComponent>();
-	}
-	internal static PlayerClipModifierHolder GetClipModifiers(this PlayerController player)
-	{
-		return player.GetComponent<PlayerClipModifierHolder>();
 	}
 
 	[HarmonyPatch(typeof(Gun), nameof(Gun.ShootSingleProjectile))]
