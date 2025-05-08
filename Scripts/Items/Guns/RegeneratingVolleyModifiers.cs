@@ -33,41 +33,55 @@ namespace JuneLib
         [HarmonyPostfix]
         public static void ModifyReturnedVolley(Gun __instance, ref ProjectileVolleyData __result)
         {
-            if (__instance.CurrentOwner == null || !(__instance.CurrentOwner is PlayerController player))
+            if (__instance.CurrentOwner == null)
             {
                 return;
             }
+
+            if (!(__instance.CurrentOwner is PlayerController player))
+            {
+                return;
+            }
+
             if (__instance.modifiedVolley == null || __result == __instance.rawVolley
                 || SkipCheck)
             {
                 return;
             }
-            GunModifyHeart modifier = __instance.gameObject.GetComponent<GunModifyHeart>();
-            if (modifier)
-            {
-                ProjectileVolleyData cached = modifier.GetCachedModifiedVolley("baseGunVolley");
-                if (cached)
-                {
-                    __result = cached;
-                }
-                else
-                {
 
-                    if (player != null)
+            if (__instance && __instance.gameObject)
+            {
+                GunModifyHeart modifier = __instance.gameObject.GetComponent<GunModifyHeart>();
+
+                if (modifier)
+                {
+                    ProjectileVolleyData cached = modifier.GetCachedModifiedVolley("baseGunVolley");
+                    if (cached)
+                    {
+                        __result = cached;
+
+                    }
+                    else
                     {
 
-                        SkipCheck = true;
-                        ProjectileVolleyData volley = __instance.Volley;
-                        //Debug.Log(volley.projectiles.Count);
-                        volley = modifier.RunIndividualModifier("baseGunVolley", volley, player, BaseVolleyModifier, __instance);
-                        //modifier.projsOnCooldown = projArgs.projs;
+                        if (player != null)
+                        {
 
-                        __result = volley;
-                        SkipCheck = false;
-                        __instance.ReinitializeModuleData(__result);
+                            SkipCheck = true;
+                            ProjectileVolleyData volley = __instance.Volley;
+                            //Debug.Log(volley.projectiles.Count);
+
+                            volley = modifier.RunIndividualModifier("baseGunVolley", volley, player, BaseVolleyModifier, __instance);
+                            //modifier.projsOnCooldown = projArgs.projs;
+
+                            __result = volley;
+                            SkipCheck = false;
+
+                            __instance.ReinitializeModuleData(__result);
+                        }
                     }
                 }
-            }
+            }        
         }
 
         public static List<string> bonusVolleys = new List<string>
