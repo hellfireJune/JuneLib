@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using HarmonyLib;
+using Mono.Cecil.Cil;
+using MonoMod.Cil;
 using UnityEngine;
 
 namespace JuneLib
@@ -122,92 +125,34 @@ namespace JuneLib
 
 		public static bool SkipLogging = true;
 
-		/*Compat Hell*/
-		[HarmonyPatch(typeof(GameUIItemController), nameof(GameUIItemController.UpdateItemSprite))]
-        [HarmonyPrefix] 
-        public static bool UpdateItemSpriteProper(PlayerItem newItem, int itemShift, GameUIItemController __instance)
+		internal static readonly MethodInfo uisp_so = AccessTools.Method(typeof(OverrideItemCanBeUsed), nameof(UpdateItemSpriteProper_SkipOverride));
+        internal static readonly MethodInfo uisp_uo = AccessTools.Method(typeof(OverrideItemCanBeUsed), nameof(UpdateItemSpriteProper_UnskipOverride));
+
+        [HarmonyPatch(typeof(GameUIItemController), nameof(GameUIItemController.UpdateItemSprite))]
+        [HarmonyILManipulator]
+        internal static void UpdateItemSpriteProper_Transpiler(ILContext ctx)
 		{
-			tk2dSprite component = newItem.GetComponent<tk2dSprite>();
-			if (newItem != __instance.m_cachedItem)
-			{
-				__instance.DoItemCardFlip(newItem, itemShift);
-			}
-			__instance.UpdateItemSpriteScale();
-			if (!__instance.m_deferCurrentItemSwap)
-			{
-				if (!__instance.itemSprite.renderer.enabled)
-				{
-					__instance.ToggleRenderers(true);
-				}
-				if (__instance.itemSprite.spriteId != component.spriteId || __instance.itemSprite.Collection != component.Collection)
-				{
-					__instance.itemSprite.SetSprite(component.Collection, component.spriteId);
-					for (int i = 0; i < __instance.outlineSprites.Length; i++)
-					{
-						__instance.outlineSprites[i].SetSprite(component.Collection, component.spriteId);
-						SpriteOutlineManager.ForceUpdateOutlineMaterial(__instance.outlineSprites[i], component);
-					}
-				}
-			}
-			Vector3 center = __instance.ItemBoxSprite.GetCenter();
-			__instance.itemSprite.transform.position = center + __instance.GetOffsetVectorForItem(newItem, __instance.m_isCurrentlyFlipping);
-			__instance.itemSprite.transform.position = __instance.itemSprite.transform.position.Quantize(__instance.ItemBoxSprite.PixelsToUnits() * 3f);
-			if (newItem.PreventCooldownBar || (!newItem.IsActive && !newItem.InternalIsOnCooldown()) || __instance.m_isCurrentlyFlipping)
-			{
-				__instance.ItemBoxFillSprite.IsVisible = false;
-				__instance.ItemBoxFGSprite.IsVisible = false;
-				__instance.ItemBoxSprite.SpriteName = "weapon_box_02";
-			}
-			else
-			{
-				__instance.ItemBoxFillSprite.IsVisible = true;
-				__instance.ItemBoxFGSprite.IsVisible = true;
-				__instance.ItemBoxSprite.SpriteName = "weapon_box_02_cd";
-			}
-			if (newItem.IsActive)
-			{
-				__instance.ItemBoxFillSprite.FillAmount = 1f - newItem.ActivePercentage;
-			}
-			else
-			{
-				__instance.ItemBoxFillSprite.FillAmount = 1f - newItem.CooldownPercentage;
-			}
-			PlayerController user = GameManager.Instance.PrimaryPlayer;
-			if (GameManager.Instance.CurrentGameType == GameManager.GameType.COOP_2_PLAYER && __instance.IsRightAligned)
-			{
-				user = GameManager.Instance.SecondaryPlayer;
-			}
-			if (newItem.IsOnCooldown || !newItem.CanBeUsed(user))
-			{
-				Color color = __instance.itemSpriteMaterial.GetColor("_OverrideColor");
-				Color color2 = new Color(0f, 0f, 0f, 0.8f);
-				if (color != color2)
-				{
-					__instance.itemSpriteMaterial.SetColor("_OverrideColor", color2);
-					tk2dSprite[] array = SpriteOutlineManager.GetOutlineSprites(__instance.itemSprite);
-					Color value = new Color(0.4f, 0.4f, 0.4f, 1f);
-					for (int j = 0; j < array.Length; j++)
-					{
-						array[j].renderer.material.SetColor("_OverrideColor", value);
-					}
-				}
-			}
-			else
-			{
-				Color color3 = __instance.itemSpriteMaterial.GetColor("_OverrideColor");
-				Color color4 = new Color(0f, 0f, 0f, 0f);
-				if (color3 != color4)
-				{
-					__instance.itemSpriteMaterial.SetColor("_OverrideColor", color4);
-					tk2dSprite[] array2 = SpriteOutlineManager.GetOutlineSprites(__instance.itemSprite);
-					Color white = Color.white;
-					for (int k = 0; k < array2.Length; k++)
-					{
-						array2[k].renderer.material.SetColor("_OverrideColor", white);
-					}
-				}
-			}
-			return false;
+			var crs = new ILCursor(ctx);
+
+			if (!crs.TryGotoNext(MoveType.Before, x => x.MatchCallOrCallvirt<PlayerItem>($"get_{nameof(PlayerItem.IsOnCooldown)}")))
+				return;
+
+			crs.Emit(OpCodes.Call, uisp_so);
+
+            if (!crs.TryGotoNext(MoveType.After, x => x.MatchCallOrCallvirt<PlayerItem>($"get_{nameof(PlayerItem.IsOnCooldown)}")))
+                return;
+
+            crs.Emit(OpCodes.Call, uisp_uo);
+        }
+
+		internal static void UpdateItemSpriteProper_SkipOverride()
+		{
+			SkipOverrideCanUse = true;
+        }
+
+        internal static void UpdateItemSpriteProper_UnskipOverride()
+        {
+            SkipOverrideCanUse = false;
         }
 
 		[HarmonyPatch(typeof(PlayerItem), nameof(PlayerItem.CooldownPercentage), MethodType.Getter)]
