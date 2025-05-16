@@ -71,6 +71,10 @@ namespace JuneLib
         public static void DoToNearbyEnemiesBetter(this RoomHandler self, Vector3 pos, float distance, Action<AIActor, float> effect, RoomHandler.ActiveEnemyType type = RoomHandler.ActiveEnemyType.All)
         {
             List<AIActor> actors = self.GetActiveEnemies(type);
+
+            if (actors == null)
+                return;
+
             for (int i = 0; i < actors.Count; i++)
             {
                 AIActor actor = actors[i];
